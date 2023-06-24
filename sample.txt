@@ -1,0 +1,170 @@
+const express = require('express');
+const { Web3 } = require('web3');
+const walletContract = require('./build/contracts/Wallet.json');
+
+// Initialize Express app
+const app = express();
+app.use(express.json());
+
+// Connect to the Ethereum network using a local provider
+const web3 = new Web3('http://localhost:7545');
+
+// Retrieve the contract ABI and bytecode from the JSON file
+const contractABI = walletContract.abi;
+const contractBytecode = walletContract.bytecode;
+
+// Specify the deployed contract address
+const contractAddress = '0x39d09478B401060eaD2C57fd9b731fD68Bc73FC3';
+
+// Create a contract instance
+const contract = new web3.eth.Contract(contractABI, contractAddress);
+
+// API endpoint to deposit funds
+app.post('/deposit', async (req, res) => {
+    const { account, amount } = req.body;
+
+    try {
+        const gasEstimate = await contract.methods.deposit().estimateGas();
+        const result = await contract.methods.deposit().send({
+            from: account,
+            value: amount,
+            gas: gasEstimate,
+        });
+
+        res.json({ transactionHash: result.transactionHash });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Failed to deposit funds.' });
+    }
+});
+
+// API endpoint to withdraw funds
+app.post('/withdraw', async (req, res) => {
+    const { account, amount } = req.body;
+
+    try {
+        const gasEstimate = await contract.methods.withdraw(amount).estimateGas();
+        const result = await contract.methods.withdraw(amount).send({
+            from: account,
+            gas: gasEstimate,
+        });
+
+        res.json({ transactionHash: result.transactionHash });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Failed to withdraw funds.' });
+    }
+});
+
+// API endpoint to transfer funds
+app.post('/transfer', async (req, res) => {
+    const { account, to, amount } = req.body;
+
+    try {
+        const gasEstimate = await contract.methods.transfer(to, amount).estimateGas();
+        const result = await contract.methods.transfer(to, amount).send({
+            from: account,
+            gas: gasEstimate,
+        });
+
+        res.json({ transactionHash: result.transactionHash });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Failed to transfer funds.' });
+    }
+});
+
+// API endpoint to get account balance
+app.get('/balance/:account', async (req, res) => {
+    const { account } = req.params;
+
+    try {
+        const balance = await contract.methods.getBalance(account).call();
+
+        res.json({ balance: balance });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Failed to get balance.' });
+    }
+});
+
+// API endpoint to give permission
+app.post('/give-permission', async (req, res) => {
+    const { account, user } = req.body;
+
+    try {
+        const gasEstimate = await contract.methods.givePermission(user).estimateGas();
+        const result = await contract.methods.givePermission(user).send({
+            from: account,
+        });
+
+        res.json({ transactionHash: result.transactionHash });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Failed to give permission.' });
+    }
+});
+
+// API endpoint to remove permission
+app.post('/remove-permission', async (req, res) => {
+    const { account, user } = req.body;
+
+    try {
+        const gasEstimate = await contract.methods.removePermission(user).estimateGas();
+        const result = await contract.methods.removePermission(user).send({
+            from: account,
+            gas: gasEstimate,
+        });
+
+        res.json({ transactionHash: result.transactionHash });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Failed to remove permission.' });
+    }
+});
+
+// API endpoint to check permission(working)
+app.get('/check-permission/:user', async (req, res) => {
+    const { user } = req.params;
+
+    try {
+        const result = await contract.methods.checkPermission(user).call();
+
+        res.json({ hasPermission: result });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Failed to check permission.' });
+    }
+});
+
+// API endpoint to get the gas fee(working)
+app.get('/gas-fee', async (req, res) => {
+    try {
+        const result = await contract.methods.gasFee().call();
+
+        res.json({ gasFee: result.toString() });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Failed to get gas fee.' });
+    }
+});
+
+// API endpoint to check if an address is the owner(working)
+app.get('/is-owner/:address', async (req, res) => {
+    const { address } = req.params;
+
+    try {
+        const result = await contract.methods.isOwner(address).call();
+
+        res.json({ isOwner: result });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Failed to check ownership.' });
+    }
+});
+
+
+// Start the server
+app.listen(3000, () => {
+    console.log('Server started on port 3000');
+});
